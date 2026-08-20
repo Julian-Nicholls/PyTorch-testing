@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import zipfile
 
 import numpy as np
 import pytest
@@ -10,6 +11,16 @@ import torch
 from torch.utils.data import DataLoader
 
 from wildfire_ml.data import CHANNEL_NAMES, NDWSDataset
+from wildfire_ml.visualize import plot_sample
+
+
+def load_script(name: str):
+    script_path = Path(__file__).parents[1] / "scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture()
@@ -42,8 +53,8 @@ def test_prepared_sample_shapes_channels_and_target_semantics(prepared: Path) ->
     sample = dataset[0]
 
     assert CHANNEL_NAMES == (
-        "elevation", "th", "vs", "tmmn", "tmmx", "sph", "pr", "pdsi",
-        "NDVI", "population", "erc", "PrevFireMask",
+        "elevation", "pdsi", "NDVI", "pr", "sph", "th", "tmmn", "tmmx",
+        "vs", "erc", "population", "PrevFireMask",
     )
     assert sample["input"].shape == (12, 64, 64)
     assert sample["target"].shape == (1, 64, 64)
@@ -71,12 +82,29 @@ def test_dataloader_batches_named_tensors(prepared: Path) -> None:
     assert batch["sample_id"] == ["train/unique-0"]
 
 
+def test_plot_creates_output_parent(prepared: Path, tmp_path: Path) -> None:
+    output = tmp_path / "new-parent" / "sample.png"
+    plot_sample(NDWSDataset(prepared)[0], str(output))
+    assert output.is_file()
+
+
+def test_download_and_extract_happy_path(tmp_path: Path) -> None:
+    source_archive = tmp_path / "source.zip"
+    filename = "next_day_wildfire_spread_train_00.tfrecord"
+    with zipfile.ZipFile(source_archive, "w") as bundle:
+        bundle.writestr(f"nested/{filename}", b"representative tfrecord bytes")
+    module = load_script("download_data")
+
+    extracted = module.download_and_extract(
+        tmp_path / "raw", tmp_path / "download.zip", source_archive.as_uri()
+    )
+
+    assert [path.name for path in extracted] == [filename]
+    assert extracted[0].read_bytes() == b"representative tfrecord bytes"
+
+
 def test_preparation_preserves_invalid_raw_target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    script_path = Path(__file__).parents[1] / "scripts" / "prepare_data.py"
-    spec = importlib.util.spec_from_file_location("prepare_data", script_path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = load_script("prepare_data")
     raw = tmp_path / "raw"
     raw.mkdir()
     (raw / "next_day_wildfire_spread_train_00.tfrecord").touch()

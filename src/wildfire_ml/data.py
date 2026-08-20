@@ -12,16 +12,16 @@ from torch.utils.data import Dataset
 # Original feature spelling and order from the NDWS publication/code.
 CHANNEL_NAMES = (
     "elevation",
-    "th",
-    "vs",
-    "tmmn",
-    "tmmx",
-    "sph",
-    "pr",
     "pdsi",
     "NDVI",
-    "population",
+    "pr",
+    "sph",
+    "th",
+    "tmmn",
+    "tmmx",
+    "vs",
     "erc",
+    "population",
     "PrevFireMask",
 )
 

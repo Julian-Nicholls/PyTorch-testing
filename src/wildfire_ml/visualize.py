@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -26,6 +28,7 @@ def plot_sample(sample: dict[str, object], output: str | None = None) -> None:
         axis.set_axis_off()
     fig.tight_layout()
     if output:
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(output, dpi=150)
     else:
         plt.show()

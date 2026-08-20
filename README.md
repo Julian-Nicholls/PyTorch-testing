@@ -11,9 +11,10 @@ inference pipeline. Those are the learning exercise.
 [Next Day Wildfire Spread (NDWS)](https://arxiv.org/abs/2112.02447) was released
 with the paper *Next Day Wildfire Spread: A Machine Learning Dataset to Predict
 Wildfire Spreading from Remote-Sensing Data*. This project downloads the
-authors' **original TFRecord distribution** from the public
-[`gresearch/next-day-wildfire-spread` Google Cloud bucket](https://console.cloud.google.com/storage/browser/gresearch/next-day-wildfire-spread),
-not a third-party conversion. The corresponding reference implementation is in
+authors' **canonical Kaggle TFRecord distribution** from the
+[NDWS Kaggle release](https://www.kaggle.com/datasets/fantineh/next-day-wildfire-spread),
+not a third-party array conversion. This is the distribution linked by the
+official Google Research README. The corresponding reference implementation is in
 [Google Research](https://github.com/google-research/google-research/tree/master/simulation_research/next_day_wildfire_spread).
 
 Preparation converts records to compressed NumPy NPZ files so TensorFlow is not
@@ -27,9 +28,9 @@ sample contains:
 | `validity_mask` | `[1, 64, 64]` bool | whether target may enter loss/metrics |
 | `raw_target` | `[1, 64, 64]` float32 | untouched source target, for auditing |
 
-The feature order is explicitly preserved as `elevation`, `th` (wind
-direction), `vs` (wind speed), `tmmn`, `tmmx`, `sph`, `pr`, `pdsi`, `NDVI`,
-`population`, `erc`, and `PrevFireMask`. NDWS encodes uncertain/unobserved fire
+The feature order exactly follows Google Research's canonical `INPUT_FEATURES`:
+`elevation`, `pdsi`, `NDVI`, `pr`, `sph`, `th` (wind direction), `tmmn`, `tmmx`,
+`vs` (wind speed), `erc`, `population`, and `PrevFireMask`. NDWS encodes uncertain/unobserved fire
 labels as `-1`, rather than definite no-fire (`0`). Preparation retains that in
 `raw_target`, places a harmless `0` placeholder in `target`, and sets
 `validity_mask=False`. Any future loss and metric **must** mask those cells.
@@ -57,24 +58,30 @@ you require a platform-specific build.
 
 ## Acquire and prepare data
 
-The small workflow downloads shard `00` from each original split and writes the
-first 64 records from each—a manageable repeatable subset for CPU experiments:
+The workflow downloads and extracts the canonical Kaggle archive, then writes
+the first 64 records from each original split—a manageable repeatable subset
+for CPU experiments:
 
 ```bash
 python scripts/download_data.py
 python scripts/prepare_data.py --samples-per-split 64
 ```
 
-Use `python scripts/download_data.py --full` to retain every original shard,
-then choose any positive subset size during preparation. Raw and prepared data
-are ignored by Git.
+The archive retains every original shard; choose any positive subset size during
+preparation. Raw, archived, and prepared data are ignored by Git.
 
-The bucket is public and normally needs no credentials. If automated access is
-blocked, open the bucket link above, download at least shard `00` for `train`,
-`eval`, and `test`, and place the unchanged files in `data/raw/`. Expected names
-are, for example,
-`next_day_wildfire_spread_train_00.tfrecord`. Then run only the preparation
-command. `--base-url` and `--raw` allow a mirror or another local directory.
+The Kaggle release is public, but automated access can still be affected by
+Kaggle authentication, rate limits, or network policy. If it is blocked, use
+the Kaggle page above to download the dataset archive and run:
+
+```bash
+python scripts/download_data.py --archive /path/to/archive.zip
+python scripts/prepare_data.py --samples-per-split 64
+```
+
+The downloader extracts TFRecords from the archive and checks that at least one
+exists. The download/extraction happy path is covered by an offline test using a
+representative archive, while the URL is the canonical Kaggle API endpoint.
 
 ## Inspect a real sample
 
